@@ -25,6 +25,10 @@ import re
 # you may use urllib to encode data appropriately
 import urllib.parse
 
+# TODO: do we need to handle when there's no port
+# TODO: protocol 1.1?
+HTTP_PROTOCOL = 'HTTP/1.1'
+
 def help():
     print("httpclient.py [GET/POST] [URL]\n")
 
@@ -32,14 +36,27 @@ class HTTPResponse(object):
     def __init__(self, code=200, body=""):
         self.code = code
         self.body = body
+    
+    def create_headers(self):
+        pass
 
 class HTTPClient(object):
-    #def get_host_port(self,url):
+    def get_host_port_path(self, url):
+        url_regex = r'https?:\/\/([0-9a-zA-Z\.]+):(\d+)(\/[\w\/]+)?'
+        host, port, path = re.search(url_regex, url).groups()
+        return host, port, path
 
     def connect(self, host, port):
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.connect((host, port))
         return None
+
+    def construct_headers(self, args):
+        headers = ''
+        for key, val in args:
+            headers += f'{key}:{val}\r\n'
+        
+        return headers
 
     def get_code(self, data):
         return None
@@ -58,17 +75,46 @@ class HTTPClient(object):
 
     # read everything from the socket
     def recvall(self, sock):
+        print("SOCKET", sock)
+
         buffer = bytearray()
         done = False
-        while not done:
-            part = sock.recv(1024)
-            if (part):
-                buffer.extend(part)
-            else:
-                done = not part
+        # while not done:
+        #     part = sock.recv(4096)
+        #     if (part):
+        #         buffer.extend(part)
+        #     else:
+        #         done = not part
+
+        # check for incoming data greater than the buffer size
+        while True:
+            data = sock.recv(4096)
+            if not data:
+                break
+            buffer += data
+
         return buffer.decode('utf-8')
 
     def GET(self, url, args=None):
+        # TODO add connect
+        host, port, raw_path = self.get_host_port_path(url)
+        self.connect(host, int(port))
+        path = raw_path if raw_path is not None else '/'
+        payload = f'GET {path} {HTTP_PROTOCOL}\r\nHost: {host}\r\n'
+
+        # add additional args
+        if args:
+            payload += self.construct_headers(args)
+
+        # add ending
+        payload += '\r\n'
+
+        self.sendall(payload)
+        self.socket.shutdown(socket.SHUT_WR)
+        data = self.recvall(self.socket)
+
+        print("DATA", data)
+
         code = 500
         body = ""
         return HTTPResponse(code, body)
