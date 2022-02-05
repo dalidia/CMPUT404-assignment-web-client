@@ -23,6 +23,7 @@ import sys
 import socket
 import re
 # you may use urllib to encode data appropriately
+# TODO use this
 import urllib.parse
 
 # TODO: do we need to handle when there's no port
@@ -67,6 +68,14 @@ class HTTPClient(object):
     def get_body(self, data):
         return None
     
+    def get_info(self, data):
+        parsed_data = data.split('\r\n\r\n')
+
+        code = parsed_data[0].split('\r\n')[0].split()[1]
+        body = parsed_data[1]
+
+        return int(code), body
+    
     def sendall(self, data):
         self.socket.sendall(data.encode('utf-8'))
         
@@ -77,23 +86,23 @@ class HTTPClient(object):
     def recvall(self, sock):
         print("SOCKET", sock)
 
-        buffer = bytearray()
+        # buffer = bytearray()
+        buffer = ''.encode('utf-8')
         done = False
-        # while not done:
-        #     part = sock.recv(4096)
-        #     if (part):
-        #         buffer.extend(part)
-        #     else:
-        #         done = not part
+        while not done:
+            part = sock.recv(1024)
+            if (part):
+                buffer += part
+            else:
+                done = not part
 
         # check for incoming data greater than the buffer size
-        while True:
-            data = sock.recv(4096)
-            if not data:
-                break
-            buffer += data
-
-        return buffer.decode('utf-8')
+        # while True:
+        #     data = sock.recv(4096)
+        #     if not data:
+        #         break
+        #     buffer += data
+        return buffer.decode('utf-8', 'ignore')
 
     def GET(self, url, args=None):
         # TODO add connect
@@ -103,6 +112,7 @@ class HTTPClient(object):
         payload = f'GET {path} {HTTP_PROTOCOL}\r\nHost: {host}\r\n'
 
         # add additional args
+        # TODO do I need to add extra headers like connection, date, accept, content-type, content-length
         if args:
             payload += self.construct_headers(args)
 
@@ -111,12 +121,12 @@ class HTTPClient(object):
 
         self.sendall(payload)
         self.socket.shutdown(socket.SHUT_WR)
+
         data = self.recvall(self.socket)
 
-        print("DATA", data)
-
-        code = 500
-        body = ""
+        code, body = self.get_info(data)
+        # code = 500
+        # body = ""
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):

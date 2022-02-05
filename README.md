@@ -25,3 +25,5 @@ Collaborated with Della Humanita (ccid: humanita)
 External sources
 ==========================
 - http://docs.python.org/3/library/socketserver.html
+- https://www.reddit.com/r/learnpython/comments/3xwdrx/p3_unicodedecodeerror_utf8_codec_cant_decode_byte/
+- https://www.tutorialspoint.com/urllib-parse-parse-urls-into-components-in-python
