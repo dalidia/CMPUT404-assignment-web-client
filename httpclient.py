@@ -24,10 +24,10 @@ import socket
 import re
 # you may use urllib to encode data appropriately
 # TODO use this
-import urllib.parse
+from urllib.parse import urlparse, urlencode
 
 # TODO: do we need to handle when there's no port
-# TODO: protocol 1.1?
+# TODO: explanation of args? what is args exactly
 HTTP_PROTOCOL = 'HTTP/1.1'
 
 def help():
@@ -43,8 +43,16 @@ class HTTPResponse(object):
 
 class HTTPClient(object):
     def get_host_port_path(self, url):
-        url_regex = r'https?:\/\/([0-9a-zA-Z\.]+):(\d+)(\/[\w\/]+)?'
-        host, port, path = re.search(url_regex, url).groups()
+        # url_regex = r'https?:\/\/([0-9a-zA-Z\.]+):(\d+)(\/[\w\/]+)?'
+        # host, port, path = re.search(url_regex, url).groups()
+        parse_result = urlparse(url)
+
+        netloc = parse_result.netloc.split(':')
+        host = netloc[0]
+        port = int(netloc[1]) if len(netloc) > 1 else 80
+
+        path = parse_result.path if parse_result.path else '/'
+
         return host, port, path
 
     def connect(self, host, port):
@@ -54,8 +62,8 @@ class HTTPClient(object):
 
     def construct_headers(self, args):
         headers = ''
-        for key, val in args:
-            headers += f'{key}:{val}\r\n'
+        for header in args:
+            headers += f'{header}:{args[header]}\r\n'
         
         return headers
 
@@ -68,6 +76,7 @@ class HTTPClient(object):
     def get_body(self, data):
         return None
     
+    # TODO change this, maybe use headers when reading the receiver
     def get_info(self, data):
         parsed_data = data.split('\r\n\r\n')
 
@@ -84,7 +93,6 @@ class HTTPClient(object):
 
     # read everything from the socket
     def recvall(self, sock):
-        print("SOCKET", sock)
 
         # buffer = bytearray()
         buffer = ''.encode('utf-8')
@@ -106,15 +114,16 @@ class HTTPClient(object):
 
     def GET(self, url, args=None):
         # TODO add connect
-        host, port, raw_path = self.get_host_port_path(url)
-        self.connect(host, int(port))
-        path = raw_path if raw_path is not None else '/'
-        payload = f'GET {path} {HTTP_PROTOCOL}\r\nHost: {host}\r\n'
+        host, port, path = self.get_host_port_path(url)
+
+        self.connect(host, port)
+        payload = f'GET {path} {HTTP_PROTOCOL}\r\nHost: {host}:{port}\r\n'
+
+        raw_headers = {'Connection': 'Close'}
 
         # add additional args
         # TODO do I need to add extra headers like connection, date, accept, content-type, content-length
-        if args:
-            payload += self.construct_headers(args)
+        payload += self.construct_headers(raw_headers)
 
         # add ending
         payload += '\r\n'
@@ -123,6 +132,8 @@ class HTTPClient(object):
         self.socket.shutdown(socket.SHUT_WR)
 
         data = self.recvall(self.socket)
+        # TODO: do I need to close socket?
+        self.socket.close()
 
         code, body = self.get_info(data)
         # code = 500
@@ -130,8 +141,42 @@ class HTTPClient(object):
         return HTTPResponse(code, body)
 
     def POST(self, url, args=None):
-        code = 500
-        body = ""
+        host, port, path = self.get_host_port_path(url)
+
+        self.connect(host, port)
+
+        payload = f'POST {path} {HTTP_PROTOCOL}\r\nHost: {host}:{path}\r\n'
+
+        # convert args into form-urlencode
+        if args:
+            body = urlencode(args)
+        else:
+            body = ''
+
+        print("X", self.socket)
+
+        raw_headers = {
+            "Content-Type": 'application/x-www-form-urlencoded',
+            "Content-Length": f"{len(body.encode('utf-8'))}",
+            'Connection': 'Close'
+        }
+
+        payload += self.construct_headers(raw_headers)
+
+        # add ending
+        payload += '\r\n'
+
+        payload += body
+
+        self.sendall(payload)
+        self.socket.shutdown(socket.SHUT_WR)
+        data = self.recvall(self.socket)
+        self.socket.close()
+
+        code, body = self.get_info(data)
+
+        # code = 500
+        # body = ""
         return HTTPResponse(code, body)
 
     def command(self, url, command="GET", args=None):
