@@ -21,7 +21,6 @@
 
 import sys
 import socket
-import re
 # you may use urllib to encode data appropriately
 # TODO use this
 from urllib.parse import urlparse, urlencode
@@ -133,10 +132,14 @@ class HTTPClient(object):
 
         data = self.recvall(self.socket)
 
+        # print("DATA", payload)
+
         self.socket.close()
 
         code = self.get_code(data)
         body = self.get_body(data)
+
+        print(body)
 
         return HTTPResponse(code, body)
 
@@ -174,6 +177,8 @@ class HTTPClient(object):
 
         code = self.get_code(data)
         body = self.get_body(data)
+
+        print(body)
 
         return HTTPResponse(code, body)
 
