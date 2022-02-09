@@ -22,9 +22,9 @@
 import sys
 import socket
 # you may use urllib to encode data appropriately
-# TODO use this
 from urllib.parse import urlparse, urlencode
 
+# Constant variables
 HTTP_PROTOCOL = 'HTTP/1.1'
 
 def help():
@@ -36,13 +36,16 @@ class HTTPResponse(object):
         self.body = body
 
 class HTTPClient(object):
+    # get the host, port and path of a url
     def get_host_port_path(self, url):
         parse_result = urlparse(url)
 
         netloc = parse_result.netloc.split(':')
         host = netloc[0]
+        # use port 80 when port is not given in the url
         port = int(netloc[1]) if len(netloc) > 1 else 80
 
+        # use root when path is not given in the url
         path = parse_result.path if parse_result.path else '/'
 
         return host, port, path
@@ -52,6 +55,7 @@ class HTTPClient(object):
         self.socket.connect((host, port))
         return None
 
+    # construct the header string from a dictionary
     def construct_headers(self, args):
         headers = ''
         for header in args:
@@ -68,13 +72,16 @@ class HTTPClient(object):
         return code
 
     def get_headers(self,data):
+        # header ending is defined by \r\n\r\n
         parsed_data = data.split('\r\n\r\n')
         
         return parsed_data[0]
 
     def get_body(self, data):
+        # start of body is defined after \r\n\r\n
         parsed_data = data.split('\r\n\r\n')
         
+        # return empty when there's nothing after the header ending
         if len(parsed_data) > 1:
             body = parsed_data[1]
         else:
@@ -106,15 +113,16 @@ class HTTPClient(object):
 
         self.connect(host, port)
 
-        # convert args into form-urlencode
+        # args are query params in GET
         if args:
-            query = "/" + urlencode(args)
+            query = "?" + urlencode(args)
         else:
             query = ''
 
-        payload = f'GET {path}{query} {HTTP_PROTOCOL}\r\nHost: {host}:{port}\r\n'
+        payload = f'GET {path}{query} {HTTP_PROTOCOL}\r\n'
 
         raw_headers = {
+            "Host": f"{host}:{port}",
             'Connection': 'close', 
             'Accept-Charset': 'UTF-8',
             'User-Agent': "Lidia's agent", 
@@ -132,10 +140,10 @@ class HTTPClient(object):
 
         data = self.recvall(self.socket)
 
-        # print("DATA", payload)
-
+        # close socket connection
         self.socket.close()
 
+        # parse server's response
         code = self.get_code(data)
         body = self.get_body(data)
 
@@ -148,7 +156,7 @@ class HTTPClient(object):
 
         self.connect(host, port)
 
-        payload = f'POST {path} {HTTP_PROTOCOL}\r\nHost: {host}:{path}\r\n'
+        payload = f'POST {path} {HTTP_PROTOCOL}\r\n'
 
         # convert args into form-urlencode
         if args:
@@ -157,6 +165,7 @@ class HTTPClient(object):
             body = ''
 
         raw_headers = {
+            "Host": f"{host}:{port}",
             "Content-Type": 'application/x-www-form-urlencoded; charset=UTF-8',
             "Content-Length": f"{len(body.encode('utf-8'))}",
             "User-Agent": "Lidia's agent",
@@ -172,9 +181,13 @@ class HTTPClient(object):
 
         self.sendall(payload)
         self.socket.shutdown(socket.SHUT_WR)
+        
         data = self.recvall(self.socket)
+
+        # close socket connection
         self.socket.close()
 
+        # parse server's response
         code = self.get_code(data)
         body = self.get_body(data)
 
