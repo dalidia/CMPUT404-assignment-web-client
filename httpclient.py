@@ -126,7 +126,6 @@ class HTTPClient(object):
             'Connection': 'close', 
             'Accept-Charset': 'UTF-8',
             'User-Agent': "Lidia's agent", 
-            "Content-Type": "text/html;charset=UTF-8"
         }
 
         # add additional args
@@ -181,7 +180,7 @@ class HTTPClient(object):
 
         self.sendall(payload)
         self.socket.shutdown(socket.SHUT_WR)
-        
+
         data = self.recvall(self.socket)
 
         # close socket connection
