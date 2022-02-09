@@ -24,4 +24,5 @@ Collaborated with Della Humanita (ccid: humanita)
 
 External sources
 ==========================
-- 
+- http://docs.python.org/3/library/socketserver.html
+- https://www.tutorialspoint.com/urllib-parse-parse-urls-into-components-in-python
